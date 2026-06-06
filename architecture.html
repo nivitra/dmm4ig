@@ -1,0 +1,2858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DM4IG — Architecture Documentation</title>
+  <meta name="description" content="Complete architecture documentation for DM4IG — omnichannel chatbot platform with flow builder, AI agents, BullMQ workers, and realtime infrastructure." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8fafc;            /* Clean light slate background */
+      --bg2: #ffffff;           /* White sidebar / panels */
+      --bg3: #ffffff;           /* White cards */
+      --bg4: #f1f5f9;           /* Slate 100 for hover / inputs / code blocks */
+      --border: #e2e8f0;        /* Slate 200 divider borders */
+      --border2: #cbd5e1;       /* Slate 300 strong borders */
+      --text: #0f172a;          /* Slate 900 main text */
+      --text2: #334155;         /* Slate 700 secondary body text */
+      --text3: #64748b;         /* Slate 500 label / meta text */
+      --accent: #4f46e5;        /* Electric Indigo */
+      --accent2: #d946ef;       /* Vibrant Neon Fuchsia */
+      --accent3: #0f766e;       /* Forest Teal */
+      --teal: #0d9488;
+      --pink: #db2777;
+      --yellow: #ca8a04;
+      --green: #16a34a;
+      --red: #dc2626;
+      --orange: #ea580c;
+      --sidebar-w: 280px;
+      --header-h: 64px;
+      --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    }
+
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text2);
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────────── */
+    .site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-name {
+      font-size: 17px;
+      font-weight: 750;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .brand-tag {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text2);
+      background: var(--bg4);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .header-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg4);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      min-width: 240px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .header-search:focus-within {
+      border-color: var(--border2);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+    }
+    .header-search input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 13.5px;
+      width: 100%;
+      font-family: inherit;
+    }
+    .header-search input::placeholder { color: var(--text3); }
+    .search-icon { color: var(--text3); font-size: 14px; }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.3px;
+    }
+    .badge-purple {
+      background: rgba(79, 70, 229, 0.06);
+      color: var(--accent);
+      border: 1px solid rgba(79, 70, 229, 0.15);
+    }
+    .badge-teal {
+      background: rgba(13, 148, 136, 0.05);
+      color: var(--teal);
+      border: 1px solid rgba(13, 148, 136, 0.15);
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────── */
+    .layout {
+      display: flex;
+      padding-top: var(--header-h);
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ─────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .sidebar-section {
+      padding: 0 16px 8px;
+    }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text3);
+      padding: 16px 8px 6px;
+      display: block;
+    }
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px 7px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text2);
+      text-decoration: none;
+      transition: all 0.15s;
+      line-height: 1.4;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-link:hover {
+      background: var(--bg4);
+      color: var(--text);
+    }
+    .sidebar-link.active {
+      background: rgba(79, 70, 229, 0.05);
+      color: var(--accent);
+      border-left-color: var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding-left: 7px;
+    }
+    .sidebar-num {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      width: 20px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 16px;
+    }
+
+    /* ── MAIN CONTENT ─────────────────────────────────── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 48px 64px;
+      max-width: calc(100vw - var(--sidebar-w));
+    }
+
+    /* ── HERO ─────────────────────────────────────── */
+    .hero {
+      margin-bottom: 56px;
+      padding: 48px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .hero::before {
+      display: none;
+    }
+    .hero-eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .hero-title {
+      font-size: 42px;
+      font-weight: 855;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .hero-desc {
+      font-size: 16px;
+      color: var(--text2);
+      max-width: 640px;
+      line-height: 1.7;
+      margin-bottom: 28px;
+    }
+    .hero-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      color: var(--text2);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── TOC ─────────────────────────────────────── */
+    .toc {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 48px;
+      box-shadow: var(--shadow-sm);
+    }
+    .toc-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 16px;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));    /* ── SECTIONS ─────────────────────────────────────── */
+    .section {
+      margin-bottom: 72px;
+      scroll-margin-top: calc(var(--header-h) + 24px);
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-number {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(79, 70, 229, 0.05);
+      border: 1px solid rgba(79, 70, 229, 0.15);
+      border-radius: 8px;
+      padding: 4px 10px;
+      flex-shrink: 0;
+      margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .section-title {
+      font-size: 26px;
+      font-weight: 750;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .subsection {
+      margin-top: 36px;
+      margin-bottom: 28px;
+    }
+    .subsection-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subsection-title::before {
+      content: '';
+      width: 3px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── DIAGRAM CARD ─────────────────────────────────── */
+    .diagram-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .diagram-card:hover {
+      border-color: var(--border2);
+      box-shadow: var(--shadow-md);
+    }
+    .diagram-card-label {
+      padding: 12px 18px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text3);
+      background: var(--bg4);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .diagram-label-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .diagram-card-label span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+    }
+    
+    /* Inline wrap: responsive static horizontal scroll viewer */
+    .diagram-wrap {
+      position: relative;
+      padding: 24px;
+      overflow-x: auto;
+      background: var(--bg2);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      display: block;
+      width: 100%;
+      max-width: 100%;
+    }
+    .diagram-wrap .mermaid {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: fit-content;
+      width: 100%;
+    }
+    .diagram-wrap svg {
+      max-width: none !important;
+      height: auto !important;
+      display: block;
+      margin: 0 auto;
+    }
+    
+    .diagram-fullscreen-trigger {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .diagram-fullscreen-trigger:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── FULLSCREEN MODAL (Zoom & Pan strictly confined here) ── */
+    .diagram-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(20px);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .diagram-modal.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .diagram-modal-header {
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(248, 250, 252, 0.85);
+    }
+    .diagram-modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .diagram-modal-title span {
+      width: 8px;
+      height: 8px;
+      background: var(--accent2);
+      border-radius: 50%;
+    }
+    .diagram-modal-close {
+      background: var(--bg4);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .diagram-modal-close:hover {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+    .diagram-modal-body {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+    }
+    .diagram-modal-body:active {
+      cursor: grabbing;
+    }
+    .diagram-modal-body svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      max-width: none !important;
+      max-height: none !important;
+      will-change: transform;
+    }
+    .diagram-modal-toolbar {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border2);
+      backdrop-filter: blur(16px);
+      border-radius: 12px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1010;
+      box-shadow: var(--shadow-lg);
+    }
+    .diagram-btn {
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 15px;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .diagram-btn:hover {
+      background: var(--bg4);
+      color: var(--text);
+    }
+    .diagram-zoom-indicator {
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+      min-width: 50px;
+      text-align: center;
+      user-select: none;
+      font-weight: 600;
+    }
+
+    /* ── TABLE ─────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--bg2);
+    }
+    thead th {
+      background: var(--bg4);
+      color: var(--text2);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 12px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg4); }
+    tbody td {
+      padding: 13px 20px;
+      color: var(--text2);
+    }
+    tbody td:first-child { color: var(--text); font-weight: 600; }
+    tbody td code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: var(--bg4);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 5px;
+      color: var(--accent);
+    }
+
+    /* ── CALLOUT ─────────────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 16px 0;
+      box-shadow: var(--shadow-sm);
+    }
+    .callout-info {
+      background: rgba(79, 70, 229, 0.04);
+      border: 1px solid rgba(79, 70, 229, 0.15);
+      color: var(--accent);
+    }
+    .callout-warn {
+      background: rgba(202, 138, 4, 0.04);
+      border: 1px solid rgba(202, 138, 4, 0.15);
+      color: var(--yellow);
+    }
+    .callout-icon { font-size: 16px; flex-shrink: 0; padding-top: 1px; }
+    .callout code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* ── PROSE ─────────────────────────────────────── */
+    .prose {
+      font-size: 15px;
+      color: var(--text2);
+      line-height: 1.7;
+      max-width: 780px;
+      margin-bottom: 24px;
+    }
+    .prose strong { color: var(--text); font-weight: 600; }
+    .prose code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: var(--bg4);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 5px;
+      color: var(--accent);
+    }
+
+    /* ── GRID CARDS ─────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+      margin: 24px 0;
+    }
+    .stat-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      transition: all 0.15s;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text3);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .stat-val {
+      font-size: 24px;
+      font-weight: 850;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+    .stat-card.accent .stat-val { color: var(--accent); }
+    .stat-card.teal .stat-val { color: var(--teal); }
+    .stat-card.pink .stat-val { color: var(--pink); }
+    .stat-card.yellow .stat-val { color: var(--yellow); }
+    .stat-card.green .stat-val { color: var(--green); }
+
+    /* ── SCROLL TOP ─────────────────────────────────── */
+    #scrollTop {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 44px;
+      height: 44px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      color: var(--text2);
+      font-size: 18px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+    #scrollTop:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    #scrollTop.show { display: flex; }
+
+    /* ── FOOTER ─────────────────────────────────────── */
+    footer {
+      margin-left: var(--sidebar-w);
+      border-top: 1px solid var(--border);
+      padding: 32px 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    /* ── LOADING ─────────────────────────────────────── */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      flex-direction: column;
+      gap: 16px;
+      transition: opacity 0.4s;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loader {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: var(--text2); }
+
+    /* ── MERMAID PREMIUM OVERRIDES (Light Mode) ────────── */
+    .mermaid svg {
+      background: transparent !important;
+      font-family: 'Inter', -apple-system, sans-serif !important;
+    }
+    
+    /* Nodes basic styling */
+    .mermaid svg .node rect,
+    .mermaid svg .node polygon,
+    .mermaid svg .node circle,
+    .mermaid svg .node path {
+      fill: #ffffff !important;
+      stroke: var(--border2) !important;
+      stroke-width: 1.5px !important;
+      transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s;
+    }
+    .mermaid svg .node:hover rect,
+    .mermaid svg .node:hover polygon,
+    .mermaid svg .node:hover circle,
+    .mermaid svg .node:hover path {
+      fill: var(--bg4) !important;
+      stroke: var(--accent) !important;
+      stroke-width: 1.5px !important;
+    }
+    .mermaid svg .node .label {
+      color: var(--text) !important;
+      font-weight: 550 !important;
+      font-size: 12px !important;
+      fill: var(--text) !important;
+    }
+    
+    /* Clusters / Subgraphs */
+    .mermaid svg .cluster rect {
+      fill: #f8fafc !important;
+      stroke: var(--border2) !important;
+      stroke-width: 1.5px !important;
+      stroke-dasharray: 4 4 !important;
+      rx: 8px !important;
+    }
+    .mermaid svg .cluster .label {
+      fill: var(--text) !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.5px !important;
+    }
+    
+    /* Connectors / Edges */
+    .mermaid svg .edgePath .path {
+      stroke: var(--text3) !important;
+      stroke-width: 1.5px !important;
+      transition: stroke 0.2s, stroke-width 0.2s;
+    }
+    .mermaid svg .edgePath:hover .path {
+      stroke: var(--accent) !important;
+      stroke-width: 2px !important;
+    }
+    .mermaid svg marker {
+      fill: var(--text3) !important;
+      transition: fill 0.2s;
+    }
+    .mermaid svg .edgePath:hover marker {
+      fill: var(--accent) !important;
+    }
+    .mermaid svg .edgeLabel rect {
+      fill: var(--bg) !important;
+      rx: 4px !important;
+    }
+    .mermaid svg .edgeLabel span {
+      color: var(--text2) !important;
+      font-size: 11px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+    
+    /* Sequence diagram overrides */
+    .mermaid svg .actor {
+      fill: #ffffff !important;
+      stroke: var(--accent) !important;
+      stroke-width: 1.5px !important;
+    }
+    .mermaid svg text.actor {
+      fill: var(--text) !important;
+      font-weight: 600 !important;
+    }
+    .mermaid svg .actor-line {
+      stroke: var(--border2) !important;
+      stroke-width: 1px !important;
+      stroke-dasharray: 6 4 !important;
+    }
+    .mermaid svg .messageLine0,
+    .mermaid svg .messageLine1 {
+      stroke: var(--text3) !important;
+      stroke-width: 1.5px !important;
+    }
+    .mermaid svg .messageText {
+      fill: var(--text2) !important;
+      font-size: 11px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+    .mermaid svg .note {
+      fill: #fef08a !important;
+      stroke: var(--yellow) !important;
+      stroke-width: 1px !important;
+    }
+    .mermaid svg .noteText {
+      fill: var(--text) !important;
+      font-size: 11px !important;
+    }
+    
+    /* Entity Relationship Overrides */
+    .mermaid svg .entityBox {
+      fill: #ffffff !important;
+      stroke: var(--teal) !important;
+      stroke-width: 1.5px !important;
+    }
+    .mermaid svg .entityRelation {
+      stroke: var(--text3) !important;
+      stroke-width: 1.5px !important;
+    }
+    .mermaid svg .relationshipLabelBox {
+      fill: var(--bg) !important;
+    }
+    
+    /* ── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 32px 24px; max-width: 100vw; }
+      footer { margin-left: 0; padding: 24px; flex-direction: column; gap: 8px; }
+    }
+    @media (max-width: 700px) {
+      .hero { padding: 28px 20px; }
+      .hero-title { font-size: 28px; }
+      .main { padding: 24px 16px; }
+      .header-search { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader"></div>
+  <div class="loading-text">Rendering diagrams…</div>
+</div>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="header-brand">
+    <div class="brand-logo">D4</div>
+    <span class="brand-name">DM4IG</span>
+    <span class="brand-tag">Architecture</span>
+  </div>
+  <div class="header-search">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Search sections…" autocomplete="off" />
+  </div>
+  <div class="header-meta">
+    <span class="badge badge-purple">18 Sections</span>
+    <span class="badge badge-teal">30+ Diagrams</span>
+  </div>
+</header>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <span class="sidebar-label">Platform</span>
+      <a href="#s1" class="sidebar-link" data-section="1"><span class="sidebar-num">01</span>System Overview</a>
+      <a href="#s2" class="sidebar-link" data-section="2"><span class="sidebar-num">02</span>Monorepo Structure</a>
+      <a href="#s3" class="sidebar-link" data-section="3"><span class="sidebar-num">03</span>Application Layer</a>
+      <a href="#s4" class="sidebar-link" data-section="4"><span class="sidebar-num">04</span>Builder Architecture</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Request Flows</span>
+      <a href="#s5" class="sidebar-link" data-section="5"><span class="sidebar-num">05</span>Request Workflows</a>
+      <a href="#s6" class="sidebar-link" data-section="6"><span class="sidebar-num">06</span>Background Jobs</a>
+      <a href="#s7" class="sidebar-link" data-section="7"><span class="sidebar-num">07</span>Realtime & WebSocket</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Channels & Data</span>
+      <a href="#s8" class="sidebar-link" data-section="8"><span class="sidebar-num">08</span>Integration Channels</a>
+      <a href="#s9" class="sidebar-link" data-section="9"><span class="sidebar-num">09</span>Database Schema</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Features</span>
+      <a href="#s10" class="sidebar-link" data-section="10"><span class="sidebar-num">10</span>AI Agent Pipeline</a>
+      <a href="#s11" class="sidebar-link" data-section="11"><span class="sidebar-num">11</span>Broadcast & Sequence</a>
+      <a href="#s12" class="sidebar-link" data-section="12"><span class="sidebar-num">12</span>Trigger System</a>
+      <a href="#s13" class="sidebar-link" data-section="13"><span class="sidebar-num">13</span>Auth & Middleware</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Infrastructure</span>
+      <a href="#s14" class="sidebar-link" data-section="14"><span class="sidebar-num">14</span>Data Access Layer</a>
+      <a href="#s15" class="sidebar-link" data-section="15"><span class="sidebar-num">15</span>Infrastructure & DevOps</a>
+      <a href="#s16" class="sidebar-link" data-section="16"><span class="sidebar-num">16</span>Package Dependency Graph</a>
+      <a href="#s17" class="sidebar-link" data-section="17"><span class="sidebar-num">17</span>Flow Engine</a>
+      <a href="#s18" class="sidebar-link" data-section="18"><span class="sidebar-num">18</span>Deployment Architecture</a>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <a href="#summary" class="sidebar-link"><span class="sidebar-num">—</span>Summary Reference</a>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-eyebrow">Architecture Documentation</div>
+      <h1 class="hero-title">DM4IG Platform</h1>
+      <p class="hero-desc">Omnichannel chatbot platform — inbox management, visual flow builder, AI agents, broadcasts, webhooks, public APIs, CLI, and MCP server. Built on Next.js 16, BullMQ, PartyKit, and PostgreSQL.</p>
+      <div class="hero-chips">
+        <span class="chip">Next.js 16</span>
+        <span class="chip">BullMQ + Redis</span>
+        <span class="chip">Drizzle ORM</span>
+        <span class="chip">PostgreSQL 18 + pgvector</span>
+        <span class="chip">PartyKit WebSocket</span>
+        <span class="chip">Apache Kafka</span>
+        <span class="chip">TypeScript 5</span>
+        <span class="chip">9 Channels</span>
+        <span class="chip">pnpm + Turborepo</span>
+        <span class="chip">AGPLv3</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-card accent"><div class="stat-label">Apps</div><div class="stat-val">5</div><div class="stat-sub">builder, worker, realtime, cli, mcp</div></div>
+      <div class="stat-card teal"><div class="stat-label">DB Tables</div><div class="stat-val">95+</div><div class="stat-sub">Drizzle ORM schemas</div></div>
+      <div class="stat-card pink"><div class="stat-label">Queues</div><div class="stat-val">9</div><div class="stat-sub">BullMQ named queues</div></div>
+      <div class="stat-card yellow"><div class="stat-label">Packages</div><div class="stat-val">30+</div><div class="stat-sub">Shared workspace packages</div></div>
+      <div class="stat-card green"><div class="stat-label">Channels</div><div class="stat-val">9</div><div class="stat-sub">WA, MSG, IG, TG, Zalo, TikTok…</div></div>
+      <div class="stat-card accent"><div class="stat-label">Worker Tests</div><div class="stat-val">38</div><div class="stat-sub">Unit integration tests</div></div>
+    </div>
+
+    <!-- TOC -->
+    <div class="toc">
+      <div class="toc-title">Table of Contents</div>
+      <div class="toc-grid">
+        <a href="#s1" class="toc-item"><span class="toc-n">01</span>High-Level System Overview</a>
+        <a href="#s2" class="toc-item"><span class="toc-n">02</span>Monorepo Structure</a>
+        <a href="#s3" class="toc-item"><span class="toc-n">03</span>Application Layer Map</a>
+        <a href="#s4" class="toc-item"><span class="toc-n">04</span>Builder Internal Architecture</a>
+        <a href="#s5" class="toc-item"><span class="toc-n">05</span>Request Workflows</a>
+        <a href="#s6" class="toc-item"><span class="toc-n">06</span>Background Job System</a>
+        <a href="#s7" class="toc-item"><span class="toc-n">07</span>Realtime & WebSocket</a>
+        <a href="#s8" class="toc-item"><span class="toc-n">08</span>Integration Channels</a>
+        <a href="#s9" class="toc-item"><span class="toc-n">09</span>Database Schema</a>
+        <a href="#s10" class="toc-item"><span class="toc-n">10</span>AI Agent Pipeline</a>
+        <a href="#s11" class="toc-item"><span class="toc-n">11</span>Broadcast & Sequence Pipeline</a>
+        <a href="#s12" class="toc-item"><span class="toc-n">12</span>Trigger System</a>
+        <a href="#s13" class="toc-item"><span class="toc-n">13</span>Auth & Middleware</a>
+        <a href="#s14" class="toc-item"><span class="toc-n">14</span>Data Access Layer</a>
+        <a href="#s15" class="toc-item"><span class="toc-n">15</span>Infrastructure & DevOps</a>
+        <a href="#s16" class="toc-item"><span class="toc-n">16</span>Package Dependency Graph</a>
+        <a href="#s17" class="toc-item"><span class="toc-n">17</span>Flow Engine Architecture</a>
+        <a href="#s18" class="toc-item"><span class="toc-n">18</span>Deployment Architecture</a>
+      </div>
+    </div>
+
+    <!-- ── SECTION 1 ── -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2 class="section-title">High-Level System Overview</h2>
+      </div>
+      <p class="prose">The platform connects external messaging channels through Next.js webhook handlers, enqueues processing into Redis-backed BullMQ queues consumed by worker processes, and pushes realtime events back to agent browsers via PartyKit WebSocket rooms.</p>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Full Platform Topology</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph Clients["Clients"]
+        Browser["Browser / Web UI"]
+        Mobile["Mobile / SDKs"]
+        ExtAPI["External API Consumers"]
+        AIAGENT["AI Agents via MCP"]
+        CLIUser["CLI Users"]
+    end
+    subgraph ExternalChannels["External Channels"]
+        WA["WhatsApp\nMeta Cloud API"]
+        MSG["Facebook Messenger"]
+        IG["Instagram"]
+        TG["Telegram"]
+        ZA["Zalo"]
+        TT["TikTok"]
+        WC["Webchat Widget"]
+        SMTP["Email SMTP"]
+    end
+    subgraph Core["DM4IG Platform"]
+        Builder["apps/builder\nNext.js 16 Port 3123\nUI + API + Server Actions + oRPC"]
+        Worker["apps/worker\nBullMQ Workers\nchat integration ai trigger webhook"]
+        Realtime["apps/realtime\nPartyKit WebSocket\nPort 1999"]
+        CLI["apps/cli\ndm4ig CLI yargs"]
+        MCP["apps/mcp-server\nModel Context Protocol"]
+    end
+    subgraph Infra["Infrastructure"]
+        PG["PostgreSQL 18\nTimescaleDB pgvector"]
+        Redis["Redis Dragonfly\nBullMQ queues cache"]
+        S3["RustFS S3\nObject Storage"]
+        Kafka["Apache Kafka\nsequence dispatch"]
+    end
+    subgraph SharedPkgs["Shared Packages"]
+        DB["@dm4ig/database\nDrizzle ORM"]
+        Business["@dm4ig/business\nService Layer"]
+        WorkerCfg["@dm4ig/worker-config\nQueue Definitions"]
+        FlowCfg["@dm4ig/flow-config\nFlow Step Schemas"]
+        AI["@dm4ig/ai"]
+    end
+    Browser --> Builder
+    Mobile --> Builder
+    ExtAPI --> Builder
+    AIAGENT --> MCP
+    CLIUser --> CLI
+    ExternalChannels <-->|webhooks| Builder
+    Builder <-->|BullMQ jobs| Redis
+    Redis <-->|dequeue| Worker
+    Worker -->|process| ExternalChannels
+    Builder --> Realtime
+    Worker --> Realtime
+    Browser <-->|WebSocket| Realtime
+    Builder --> PG
+    Worker --> PG
+    Builder --> S3
+    Worker --> S3
+    Worker --> Kafka
+    Builder --> SharedPkgs
+    Worker --> SharedPkgs
+    MCP -->|REST oRPC| Builder
+    CLI -->|REST oRPC| Builder
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 2 ── -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2 class="section-title">Monorepo Structure</h2>
+      </div>
+      <p class="prose">The repository is a <strong>pnpm workspace</strong> orchestrated by <strong>Turborepo</strong>. Three top-level directories separate concerns: <code>apps/</code> for runnable processes, <code>packages/</code> for shared libraries, and <code>integrations/</code> for channel-specific send/receive logic.</p>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Repository Tree</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph LR
+    Root["dm4ig/\npnpm workspace Turborepo"]
+    Root --> Apps["apps/"]
+    Root --> Packages["packages/"]
+    Root --> Integrations["integrations/"]
+    Apps --> Builder["builder/\nNext.js 16 web app"]
+    Apps --> Worker["worker/\nBullMQ background jobs"]
+    Apps --> Realtime["realtime/\nPartyKit WS server"]
+    Apps --> CLI["cli/\ndm4ig-cli yargs"]
+    Apps --> MCP["mcp-server/\nMCP server"]
+    Packages --> PKG1["database — Drizzle + PostgreSQL"]
+    Packages --> PKG2["business — Domain Service Layer"]
+    Packages --> PKG3["worker-config — Queue & Job Types"]
+    Packages --> PKG4["flow-config — Flow Step Schemas"]
+    Packages --> PKG5["ai — AI provider abstractions"]
+    Packages --> PKG6["sdk — Outgoing message types"]
+    Packages --> PKG7["ui — Shadcn UI components"]
+    Packages --> PKG8["analytics / analytics-nextjs"]
+    Packages --> PKG9["event-bus / events"]
+    Packages --> PKG10["kafka / redis / scheduler"]
+    Packages --> PKG11["public-apis / partysocket-config"]
+    Packages --> PKG12["auth / logger / utils / encryption"]
+    Integrations --> INT1["webchat / whatsapp / messenger"]
+    Integrations --> INT2["instagram / telegram / zalo"]
+    Integrations --> INT3["tiktok / smtp / openai / google-sheets"]
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 3 ── -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2 class="section-title">Application Layer Map</h2>
+      </div>
+      <p class="prose">Four tiers stack from clients at the top through the builder application and service layer down to the PostgreSQL, Redis, S3, and Kafka data stores.</p>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Layer Stack</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart TB
+    subgraph T1["Client Tier"]
+        C1["Browser Next.js SSR/CSR"]
+        C2["CLI yargs"]
+        C3["MCP Client AI Agents"]
+        C4["Channel Webhooks WA MSG TG"]
+    end
+    subgraph T2["Application Tier — apps/builder Port 3123"]
+        B1["Next.js App Router\nServer Components\nServer Actions\nnext-safe-action"]
+        B2["oRPC POST /rpc GET /api/*\n25+ feature routers"]
+        B3["Better Auth /api/auth/*"]
+        B4["Webhook Handlers /api/whatsapp/*\n/api/messenger/* /api/telegram/*"]
+    end
+    subgraph T3["Worker Tier — apps/worker"]
+        W1["Chat Worker — send channel messages"]
+        W2["Integration Worker — receive & route"]
+        W3["AI Agent Worker — embeddings & inference"]
+        W4["Trigger Worker — evaluate & execute"]
+        W5["Webhook / Schedule / Sequence Workers"]
+    end
+    subgraph T4["Service Tier — @dm4ig/business"]
+        S1["conversationService"]
+        S2["contactService"]
+        S3["messageService"]
+        S4["inboxService"]
+        S5["workspaceService"]
+    end
+    subgraph T5["Data Tier"]
+        D1["@dm4ig/database\nDrizzle ORM 95+ tables"]
+        D2["PostgreSQL 18\nTimescaleDB pgvector"]
+        D3["Redis BullMQ + Cache"]
+        D4["RustFS S3 Object Storage"]
+        D5["Apache Kafka Sequences"]
+    end
+    C1 & C2 & C3 & C4 --> T2
+    T2 -->|enqueue| D3
+    D3 -->|dequeue| T3
+    T2 & T3 --> T4
+    T4 --> D1 --> D2
+    T2 & T3 --> D4
+    T3 --> D5
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 4 ── -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2 class="section-title">Builder (Next.js) Internal Architecture</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Builder App Router & Feature Structure</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph NextApp["apps/builder/src/app/"]
+        SpaceRoute["space/workspaceId/\nAuthenticated workspace pages"]
+        APIRoutes["api/\nauth rpc whatsapp health\npresigned-upload public-spec scalar-ui"]
+        AuthRoute["auth/ Better Auth"]
+        IntegRoute["integrations/ Public pages"]
+        AdminRoute["admin/ Platform admin"]
+    end
+    subgraph Features["apps/builder/src/features/"]
+        F1["Chat & Conversations"]
+        F2["AI agents files functions\nhub mcp-servers tools triggers"]
+        F3["Broadcasts & Sequences"]
+        F4["Flows & Flow Versions"]
+        F5["Contacts & Contact Inboxes"]
+        F6["Inboxes & Workspace Members"]
+        F7["Integrations\nWhatsApp Messenger Telegram\nZalo TikTok Instagram SMTP\nWebchat Google Sheets OpenAI\nClaude Gemini DeepSeek"]
+        F8["Triggers & Webhooks"]
+        F9["Analytics & Error Logs"]
+        F10["Tags Custom Fields Bot Fields\nSaved Replies Products"]
+    end
+    subgraph APILayer["API Layer"]
+        oRPC["orpc.ts\nauthorizedAPI\nworkspaceTokenAuthAPI"]
+        Router["routers/index.ts 25+ routers"]
+        Middleware["middlewares/\nauthMiddleware\nworkspaceAuthorizedMidddleware\nworkspaceTokenAuthMidddleware"]
+    end
+    subgraph Routers["oRPC Feature Routers"]
+        R1["aiAgentsAPI broadcastAPIs"]
+        R2["conversationsAPI flowsAPI"]
+        R3["contactsAPIs inboxesAPI"]
+        R4["integrationWhatsappAPIs\nintegrationMessengerAPIs"]
+        R5["sequencesAPI tagsAPI\nanalyticsRoutes workspacesAPI"]
+    end
+    SpaceRoute --> Features
+    APIRoutes --> oRPC --> Middleware
+    APIRoutes --> Router --> Routers
+    Features --> Routers
+          </div>
+        </div>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title">Workspace Route Groups</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>Page Routes</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+graph LR
+    Space["space/workspaceId/"]
+    Space --> Dashboard["dashboard/"]
+    Space --> Inbox["inbox/ Live chat"]
+    Space --> Contacts["contacts/"]
+    Space --> Broadcasts["broadcasts/"]
+    Space --> Sequences["sequences/"]
+    Space --> Agents["agents/ AI Agents"]
+    Space --> Triggers["triggers/"]
+    Space --> Webhooks["webhooks/"]
+    Space --> Flows["has-folder group\nflows sequences triggers"]
+    Space --> Integrations["integrations group\nmessengers webchats instagrams"]
+    Space --> Settings["settings group\nmembers custom-fields tags bot-fields"]
+    Space --> AI["ai group\nai-hub ai-agents"]
+    Space --> Ecommerce["e-commerce group\nproducts"]
+    Space --> More["magic-links qr-codes\nreflinks automated-responses error-logs"]
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 5 ── -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2 class="section-title">Request Workflows</h2>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">5.1 — GET Request via Server Component</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>Sequence Diagram</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+sequenceDiagram
+    participant Browser
+    participant NextServer as Next.js Server
+    participant Drizzle as Drizzle ORM
+    participant PostgreSQL
+    Note over Browser,NextServer: nuqs parses URL params page filters etc
+    Browser->>NextServer: GET /space/workspaceId/contacts?page=2
+    NextServer->>NextServer: authMiddleware validates session cookie
+    NextServer->>Drizzle: db.query.contactModel.findMany where limit offset
+    Drizzle->>PostgreSQL: SELECT * FROM Contact WHERE workspaceId=...
+    PostgreSQL-->>Drizzle: rows[]
+    Drizzle-->>NextServer: typed ContactModel[]
+    NextServer-->>Browser: Rendered Server Component HTML
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">5.2 — Mutation via Server Action</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>Sequence Diagram</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+sequenceDiagram
+    participant Browser
+    participant NextServer as Next.js Server
+    participant BusinessSvc as @dm4ig/business
+    participant Drizzle as Drizzle ORM
+    participant Redis
+    participant Worker
+    Browser->>NextServer: Server Action POST encrypted
+    NextServer->>NextServer: next-safe-action validates Zod schema
+    NextServer->>NextServer: workspaceAuthorizedMidddleware checks membership
+    NextServer->>BusinessSvc: service.create or update or delete
+    BusinessSvc->>Drizzle: db.insert update delete
+    Drizzle-->>BusinessSvc: result
+    BusinessSvc->>Redis: queue.add jobName data optional side-effects
+    Redis-->>Worker: dequeue process async
+    BusinessSvc-->>NextServer: return value
+    NextServer-->>Browser: revalidatePath triggers reload
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">5.3 — oRPC API Request</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>Sequence Diagram</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+sequenceDiagram
+    participant Client as Browser CLI MCP
+    participant NextServer as Next.js oRPC Handler
+    participant Middleware as Auth Middleware
+    participant Router as oRPC Router
+    participant Business as @dm4ig/business
+    participant DB as PostgreSQL
+    Client->>NextServer: POST /rpc or GET /api/...
+    NextServer->>Middleware: authMiddleware validates session or token
+    Middleware-->>NextServer: context session user
+    NextServer->>Router: router.procedure.handler input
+    Router->>Business: service.method args
+    Business->>DB: Drizzle query
+    DB-->>Business: rows
+    Business-->>Router: domain model
+    Router-->>Client: typed JSON response
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">5.4 — Incoming Channel Message End-to-End</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>Full Message Flow</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+sequenceDiagram
+    participant Channel as WhatsApp Messenger etc
+    participant Builder as Builder Webhook Handler
+    participant Redis as Redis Queue
+    participant IntWorker as Integration Worker
+    participant AutoResp as Automated Response
+    participant ChatWorker as Chat Worker
+    participant Realtime as Realtime Server
+    participant Browser as Agent Browser
+    Channel->>Builder: POST /api/whatsapp webhook
+    Builder->>Builder: Verify HMAC signature
+    Builder->>Redis: integrationQueue.add incomingMessage payload
+    Redis-->>IntWorker: dequeue job
+    IntWorker->>IntWorker: receiveMessage parse persist
+    IntWorker->>IntWorker: Find or create Contact ContactInbox Conversation Message
+    alt Has active challenge getUserData step
+        IntWorker->>Redis: integrationQueue.add runChallenge
+    else Normal message
+        IntWorker->>AutoResp: automatedResponseService.enqueue
+        AutoResp->>Redis: integrationQueue.add processAutomatedResponse
+        Redis-->>IntWorker: processAutomatedResponse job
+        IntWorker->>IntWorker: Run flow AI agent keyword match
+    end
+    IntWorker->>Redis: chatQueue.add sendChannelMessage outgoing
+    Redis-->>ChatWorker: dequeue send to channel API
+    ChatWorker->>Channel: API call send message
+    IntWorker->>Redis: chatQueue.add broadcastEvent wsEvent
+    Redis-->>ChatWorker: broadcastEvent job
+    ChatWorker->>Realtime: POST /parties/workspaces/id JWT
+    Realtime->>Browser: WebSocket broadcast new message
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 6 ── -->
+    <section class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2 class="section-title">Background Job System (BullMQ)</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Queue → Worker Mapping</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph LR
+    subgraph Queues["BullMQ Queues Redis-backed"]
+        QChat["chat queue\nsendChannelMessage\nsendFlowMessage\nsendChatMessage\nsendWhatsappTemplateMessage\nsendMessengerTemplateMessage\nsendTyping\nbroadcastEvent\nnotifyExportResult"]
+        QIntegration["integration queue\nincomingMessage\nmessageStatus\nsendFlow\nsendSequenceFlow\nrunFlowPostback\nrunFlowQuickReply\nprocessAutomatedResponse\nagentMarkAsRead\ncontactMarkAsRead\nrunRef runChallenge\ncreateMessage sendEmail\ncoexistWhatsappBuffer Flush\ncoexistMessengerSync\ncoexistAttachmentDownload\nupdateContactAvatar\nchannelLabelChange"]
+        QAI["aiAgent queue\nprocessAIFile\nprocessPendingEmbedding\nsummarizeConversation\nprocessConversationSource\nprocessConversationSourceEmbedding"]
+        QTrigger["trigger queue\nexecuteTrigger\nevaluateTriggers"]
+        QWebhook["webhook queue\noutgoing webhook delivery"]
+        QSchedule["schedule queue\nBullMQ repeatable jobs"]
+        QSeqSched["sequenceScheduler queue\nKafka-backed dispatch"]
+    end
+    subgraph Workers["Worker Processes apps/worker/src/"]
+        WChat["chat/worker.ts"]
+        WIntegration["integration/worker.ts"]
+        WAI["ai-agent/worker.ts"]
+        WTrigger["trigger/worker.ts"]
+        WWebhook["webhook/worker.ts"]
+        WSchedule["schedule/worker.ts"]
+        WSeqSched["sequence-scheduler/worker.ts"]
+    end
+    QChat --> WChat
+    QIntegration --> WIntegration
+    QAI --> WAI
+    QTrigger --> WTrigger
+    QWebhook --> WWebhook
+    QSchedule --> WSchedule
+    QSeqSched --> WSeqSched
+          </div>
+        </div>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title">Job Lifecycle State Machine</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>State Diagram</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+stateDiagram-v2
+    [*] --> Waiting : queue.add jobName data
+    Waiting --> Active : Worker picks up
+    Active --> Completed : Handler succeeds
+    Active --> Failed : Handler throws
+    Failed --> Waiting : Retry with backoff
+    Failed --> Dead : Max retries exceeded
+    Completed --> [*]
+    Dead --> [*] : Manual intervention
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 7 ── -->
+    <section class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2 class="section-title">Realtime &amp; WebSocket Architecture</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>WebSocket Connection Flow</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+sequenceDiagram
+    participant Browser
+    participant PartyKit as Realtime Server PartyKit Port 1999
+    participant NextServer as Builder Next.js
+    Browser->>PartyKit: WebSocket connect /parties/workspaces/workspaceId
+    PartyKit->>NextServer: GET /api/auth/session Cookie session_token
+    NextServer-->>PartyKit: Session or null
+    alt Session valid
+        PartyKit->>PartyKit: Set X-User-ID header on connection
+        PartyKit-->>Browser: Connected OK
+    else No session
+        PartyKit-->>Browser: Close 1008 Unauthorized
+    end
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Server → Browser Broadcast Flow</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+sequenceDiagram
+    participant Worker as BullMQ Worker or Next.js Action
+    participant PartyKit as Realtime Server
+    participant Browser as All connected browsers
+    Worker->>Worker: Sign 60s JWT aud=workspace:id HS256
+    Worker->>PartyKit: POST /parties/workspaces/id Authorization Bearer jwt
+    alt JWT valid and audience matches
+        PartyKit->>PartyKit: room.broadcast payload
+        PartyKit-->>Browser: WebSocket message JSON
+    else JWT invalid or expired
+        PartyKit-->>Worker: 401 Unauthorized
+    end
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Realtime Event Types</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph LR
+    Events["RealtimeEventData\n@dm4ig/partysocket-config"]
+    Events --> E1["conversation:new\nconversation:updated"]
+    Events --> E2["message:new\nmessage:updated"]
+    Events --> E3["contact:updated"]
+    Events --> E4["inbox:updated"]
+    Events --> E5["trigger:fired"]
+    Events --> E6["broadcast:progress"]
+    Events --> E7["ai:response"]
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 8 ── -->
+    <section class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2 class="section-title">Integration Channels</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Supported Channel Types</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph Channels["ChannelType enum — packages/database/src/partials/channel.ts"]
+        WA["whatsapp\nMeta Cloud API\nWebhook + Send API"]
+        MSG["messenger\nFacebook Graph API\nWebhook + Send API"]
+        IG["instagram\nMeta Instagram API\nWebhook + Send API"]
+        TG["telegram\nTelegram Bot API\nLong poll / Webhook"]
+        ZA["zalo\nZalo OA API\nWebhook + Send API"]
+        TT["tiktok\nTikTok API\nWebhook + Send"]
+        WC["webchat\nCustom JS widget\nSSE REST"]
+        SMTP_CH["smtp\nEmail send receive"]
+        OMNI["omnichannel\nVirtual multi-channel"]
+    end
+    subgraph IntPkgs["integrations/ packages"]
+        PKG_WA["integrations/whatsapp"]
+        PKG_MSG["integrations/messenger"]
+        PKG_IG["integrations/instagram"]
+        PKG_TG["integrations/telegram"]
+        PKG_ZA["integrations/zalo"]
+        PKG_TT["integrations/tiktok"]
+        PKG_WC["integrations/webchat"]
+        PKG_SMTP["integrations/smtp"]
+    end
+    WA --> PKG_WA
+    MSG --> PKG_MSG
+    IG --> PKG_IG
+    TG --> PKG_TG
+    ZA --> PKG_ZA
+    TT --> PKG_TT
+    WC --> PKG_WC
+    SMTP_CH --> PKG_SMTP
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Integration Data Flow</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart LR
+    EXT["External Channel\ne.g. WhatsApp"]
+    WH["Webhook Handler\nNext.js route"]
+    IQ["integrationQueue\nRedis BullMQ"]
+    IW["Integration Worker"]
+    BS["Business Services\n@dm4ig/business"]
+    DB["PostgreSQL"]
+    CQ["chatQueue\nRedis BullMQ"]
+    CW["Chat Worker"]
+    SEND["Channel Send API"]
+    EXT -->|"POST webhook"| WH
+    WH -->|"verify enqueue"| IQ
+    IQ -->|"dequeue"| IW
+    IW -->|"parse message"| BS
+    BS -->|"upsert Contact\nContactInbox\nConversation\nMessage"| DB
+    IW -->|"enqueue reply"| CQ
+    CQ -->|"dequeue"| CW
+    CW -->|"send()"| SEND
+    SEND -->|"API call"| EXT
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 9 ── -->
+    <section class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2 class="section-title">Database Schema</h2>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title">Core Entity Relationships</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>ER Diagram</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+erDiagram
+    Workspace {
+        bigint id PK
+        text name
+        text language
+        text timezone
+        text brandColor
+        bigint ownerId FK
+        text token
+    }
+    User {
+        bigint id PK
+        text name
+        text email
+        boolean emailVerified
+    }
+    WorkspaceMember {
+        bigint id PK
+        bigint workspaceId FK
+        bigint userId FK
+        text role
+    }
+    Inbox {
+        bigint id PK
+        text name
+        text channel
+        text sourceId
+        bigint workspaceId FK
+    }
+    Contact {
+        bigint id PK
+        text firstName
+        text lastName
+        text email
+        text phoneNumber
+        bigint workspaceId FK
+        timestamp lastActivityAt
+    }
+    ContactInbox {
+        bigint id PK
+        bigint contactId FK
+        bigint inboxId FK
+        text sourceId
+    }
+    Conversation {
+        bigint id PK
+        bigint workspaceId FK
+        bigint contactId FK
+        boolean botEnabled
+        timestamp botResumeAt
+        bigint assignedUserId FK
+    }
+    Message {
+        bigint id PK
+        bigint conversationId FK
+        bigint contactInboxId FK
+        bigint workspaceId FK
+        text text
+        text messageType
+        text contentType
+        text senderType
+    }
+    Workspace ||--o{ Inbox : has
+    Workspace ||--o{ Contact : has
+    Workspace ||--o{ Conversation : has
+    Workspace ||--o{ WorkspaceMember : has
+    User ||--o{ WorkspaceMember : "member of"
+    Contact ||--o{ ContactInbox : has
+    Inbox ||--o{ ContactInbox : has
+    Contact ||--|| Conversation : has
+    Conversation ||--o{ Message : contains
+    ContactInbox ||--o{ Message : sends
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">Automation Entity Relationships</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>ER Diagram — Flows, Triggers, Sequences, Broadcasts</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+erDiagram
+    Flow {
+        bigint id PK
+        text name
+        boolean active
+        bigint workspaceId FK
+        bigint currentVersionId
+        bigint draftVersionId
+        bigint folderId FK
+    }
+    FlowVersion {
+        bigint id PK
+        bigint flowId FK
+        jsonb nodes
+        jsonb edges
+    }
+    Trigger {
+        bigint id PK
+        text name
+        boolean active
+        jsonb actions
+        bigint workspaceId FK
+    }
+    TriggerCondition {
+        bigint id PK
+        bigint triggerId FK
+        text field
+        text operator
+        text value
+    }
+    Sequence {
+        bigint id PK
+        text name
+        boolean active
+        int subscribers
+        bigint workspaceId FK
+    }
+    SequenceStep {
+        bigint id PK
+        bigint sequenceId FK
+        int delay
+        jsonb message
+    }
+    Broadcast {
+        bigint id PK
+        text name
+        bigint workspaceId FK
+        bigint flowId FK
+        text status
+        text channel
+        timestamp schedulesAt
+    }
+    Folder {
+        bigint id PK
+        text name
+        text type
+        bigint workspaceId FK
+    }
+    Flow ||--o{ FlowVersion : versions
+    Folder ||--o{ Flow : organizes
+    Folder ||--o{ Trigger : organizes
+    Folder ||--o{ Sequence : organizes
+    Trigger ||--o{ TriggerCondition : conditions
+    Sequence ||--o{ SequenceStep : steps
+    Broadcast }o--|| Flow : uses
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">AI Entity Relationships</div>
+        <div class="diagram-card">
+          <div class="diagram-card-label"><span></span>ER Diagram — AI Agents, Files, Embeddings</div>
+          <div class="diagram-wrap">
+            <div class="mermaid">
+erDiagram
+    AIAgent {
+        bigint id PK
+        text name
+        text prompt
+        jsonb models
+        jsonb tools
+        float temperature
+        int maxOutputTokens
+        bigint workspaceId FK
+    }
+    AIFile {
+        bigint id PK
+        text name
+        text storagePath
+        bigint workspaceId FK
+        bigint agentId FK
+    }
+    AIEmbedding {
+        bigint id PK
+        bigint fileId FK
+        text content
+        vector embedding
+        text status
+    }
+    AIFunction {
+        bigint id PK
+        text name
+        text description
+        jsonb parameters
+        bigint workspaceId FK
+    }
+    AITrigger {
+        bigint id PK
+        text name
+        bigint workspaceId FK
+        bigint aiAgentId FK
+        bigint inboxId FK
+    }
+    AIMcpServer {
+        bigint id PK
+        text name
+        text url
+        bigint workspaceId FK
+    }
+    AIAgent ||--o{ AIFile : "knowledge files"
+    AIAgent ||--o{ AITrigger : triggers
+    AIFile ||--o{ AIEmbedding : chunks
+    AIAgent ||--o{ AIMcpServer : "mcp servers"
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 10 ── -->
+    <section class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2 class="section-title">AI Agent Pipeline</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Full AI Processing & Knowledge Ingestion Pipeline</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart TB
+    subgraph Trigger["Trigger Points"]
+        T1["Incoming message\nIntegration Worker"]
+        T2["Flow step AI Agent node"]
+        T3["Manual API call"]
+    end
+    subgraph AIAgent["AI Agent Processing"]
+        AA1["Look up AIAgent config\nprompt models tools temperature"]
+        AA2["Build context\nconversation history embeddings"]
+        AA3["pgvector similarity search\nAI knowledge files"]
+        AA4["Select AI Provider\nOpenAI Claude Gemini DeepSeek"]
+        AA5["Stream or Complete response"]
+        AA6["Parse tool calls\nAIFunction MCP tools web-search"]
+        AA7["Execute tools"]
+        AA8["Compose final response"]
+    end
+    subgraph Knowledge["Knowledge Ingestion — AI Agent Worker"]
+        K1["Upload file to S3"]
+        K2["Queue processAIFile"]
+        K3["Chunk text 1000 chars 200 overlap"]
+        K4["Queue processPendingEmbedding"]
+        K5["Call OpenAI Embeddings API"]
+        K6["Store vector in PostgreSQL pgvector"]
+    end
+    subgraph Output["Response Delivery"]
+        O1["chatQueue.add sendChatMessage"]
+        O2["Chat Worker to Channel API"]
+        O3["Realtime broadcast to Browser"]
+    end
+    T1 & T2 & T3 --> AA1
+    AA1 --> AA2 --> AA3 --> AA4 --> AA5 --> AA6 --> AA7 --> AA8
+    AA8 --> O1 --> O2
+    O1 --> O3
+    K1 --> K2 --> K3 --> K4 --> K5 --> K6 --> AA3
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>AI Provider Map</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph LR
+    AI_PKG["@dm4ig/ai\nAI abstractions"]
+    AI_PKG --> OAI["OpenAI\ngpt-4o embeddings"]
+    AI_PKG --> CLAUDE["Anthropic Claude\nclaude-3-5-sonnet"]
+    AI_PKG --> GEMINI["Google Gemini\ngemini-1.5-pro"]
+    AI_PKG --> DEEPSEEK["DeepSeek\ndeepseek-chat"]
+    AI_PKG --> MIMO["Mimo internal custom"]
+    subgraph Tools["AI Tools"]
+        T1["Web Search authorized domains"]
+        T2["AIFunction custom HTTP functions"]
+        T3["MCP Tools Model Context Protocol"]
+        T4["Google Sheets read write"]
+    end
+    AI_PKG --> Tools
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 11 ── -->
+    <section class="section" id="s11">
+      <div class="section-header">
+        <div class="section-number">11</div>
+        <h2 class="section-title">Broadcast &amp; Sequence Pipeline</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Broadcast Fan-out Flow</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart LR
+    subgraph Create["Create Broadcast Builder"]
+        BC1["Define audience\ncontact filter"]
+        BC2["Choose channel\nWA MSG Email"]
+        BC3["Select template or flow"]
+        BC4["Schedule or send now"]
+    end
+    subgraph Schedule["Schedule Worker cron"]
+        SC1["Check broadcasts schedulesAt <= now"]
+        SC2["Fan-out iterate contacts"]
+        SC3["For each contact\nchatQueue.add sendWhatsappTemplateMessage"]
+    end
+    subgraph Delivery["Chat Worker Delivery"]
+        DV1["Chat Worker receives job"]
+        DV2["Call channel send API"]
+        DV3["Update ContactOnBroadcast\nstatus sent or failed"]
+        DV4["Update Broadcast.contactCount"]
+    end
+    Create --> Schedule
+    SC1 --> SC2 --> SC3
+    SC3 --> DV1 --> DV2 --> DV3 --> DV4
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Sequence Drip Campaign Flow</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart TB
+    subgraph Enroll["Enrollment"]
+        E1["Contact subscribes\nvia Flow step API Trigger"]
+        E2["Create ContactOnSequence record"]
+        E3["Kafka dispatch first step"]
+    end
+    subgraph Dispatch["Sequence Scheduler Kafka Consumer"]
+        D1["Kafka consumer sequence-scheduler"]
+        D2["Look up next SequenceStep"]
+        D3["Respect delay hours days"]
+        D4["integrationQueue.add sendSequenceFlow"]
+    end
+    subgraph Send["Integration Worker"]
+        S1["handleSendSequenceFlow"]
+        S2["Run Flow node for step"]
+        S3["Send message via channel"]
+        S4["Record SequenceDispatch"]
+        S5["Kafka dispatch next step"]
+    end
+    E1 --> E2 --> E3
+    E3 --> D1 --> D2 --> D3 --> D4
+    D4 --> S1 --> S2 --> S3 --> S4 --> S5
+    S5 -.->|repeat for each step| D1
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 12 ── -->
+    <section class="section" id="s12">
+      <div class="section-header">
+        <div class="section-number">12</div>
+        <h2 class="section-title">Trigger System</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Trigger Event → Evaluation → Execution</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart TB
+    subgraph Events["Trigger Events"]
+        EV1["contact:created"]
+        EV2["message:received"]
+        EV3["conversation:opened"]
+        EV4["tag:added"]
+        EV5["broadcast:clicked"]
+        EV6["Custom event via API"]
+    end
+    subgraph Evaluation["Trigger Evaluation — Trigger Worker"]
+        TE1["emit analytics:dashboard on event"]
+        TE2["triggerQueue.add evaluateTriggers event"]
+        TE3["Load all active triggers for workspace"]
+        TE4["Check TriggerConditions\nfield operator value"]
+        TE5{"All conditions pass?"}
+    end
+    subgraph Execution["Trigger Actions — Trigger Worker"]
+        TA1["triggerQueue.add executeTrigger"]
+        TA2["Iterate Trigger.actions JSON array"]
+        TA3["Actions\nsendFlow\naddTag removeTag\nsubscribeToSequence\nassignConversation\nsendWebhook"]
+    end
+    Events --> TE1 --> TE2 --> TE3 --> TE4 --> TE5
+    TE5 -->|Yes| TA1 --> TA2 --> TA3
+    TE5 -->|No| End["Skip trigger"]
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 13 ── -->
+    <section class="section" id="s13">
+      <div class="section-header">
+        <div class="section-number">13</div>
+        <h2 class="section-title">Auth &amp; Middleware</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Authentication Stack</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph BetterAuth["Better Auth apps/builder"]
+        BA1["Session cookies HTTP-only"]
+        BA2["Email + Password"]
+        BA3["OAuth Google etc"]
+        BA4["Magic links"]
+        BA5["Workspace invitations"]
+        BA6["JWK API tokens"]
+    end
+    subgraph Middleware["oRPC Middleware Chain"]
+        MW1["base context setup"]
+        MW2["authMiddleware\nvalidates Better Auth session"]
+        MW3["workspaceAuthorizedMidddleware\nchecks WorkspaceMember record"]
+        MW4["workspaceTokenAuthMidddleware\nvalidates workspace token"]
+    end
+    subgraph APITypes["API Categories"]
+        API1["authorizedAPI\nsession-based user auth"]
+        API2["workspaceTokenAuthAPI\ntoken-based external apps"]
+        API3["Public routes\nno auth required"]
+    end
+    BetterAuth --> MW2
+    MW1 --> MW2 --> MW3
+    MW3 --> API1
+    MW1 --> MW4 --> API2
+          </div>
+        </div>
+      </div>
+      <div class="callout callout-warn">
+        <span class="callout-icon">⚠️</span>
+        <span>The middleware names contain a triple-d typo preserved for backward compatibility: <code>workspaceAuthorizedMidddleware</code> and <code>workspaceTokenAuthMidddleware</code>. Never correct this spelling — it will break all usages.</span>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Next.js Middleware Route Matching</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph LR
+    NextMW["Next.js middleware.ts"]
+    NextMW -->|"public no auth"| PUB["webchat\nzalo_verifier\npricing\nchat-widget\nassets storage\n_next/* favicon"]
+    NextMW -->|"proxy auth"| AUTH["Attach x-url x-domain\nheaders for public host"]
+    NextMW -->|"protected"| PROT["All other routes\nredirect to /auth if no session"]
+    NextMW -->|"always proxied"| ALWAYS["/api/presigned-upload\n/api/whatsapp/*"]
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 14 ── -->
+    <section class="section" id="s14">
+      <div class="section-header">
+        <div class="section-number">14</div>
+        <h2 class="section-title">Data Access Layer</h2>
+      </div>
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <span><strong>Rule:</strong> Code in <code>apps/</code> and <code>integrations/</code> must NOT import <code>db</code> directly from <code>@dm4ig/database/client</code>. All database access goes through <code>@dm4ig/business</code> services or <code>@dm4ig/database/repositories</code>. Currently 50+ violations exist as legacy debt.</span>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Data Access Layering</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph AppLayer["App Layer apps/"]
+        Builder["apps/builder"]
+        Worker["apps/worker"]
+        Integrations["integrations/*"]
+    end
+    subgraph BusinessLayer["@dm4ig/business Service Layer"]
+        ConvSvc["conversationService"]
+        ContactSvc["contactService"]
+        MsgSvc["messageService"]
+        InboxSvc["inboxService"]
+        WorkspaceSvc["workspaceService"]
+        IntCtx["integrationContextService"]
+    end
+    subgraph DatabaseLayer["@dm4ig/database"]
+        Repositories["repositories/\ntyped Drizzle query helpers"]
+        Queries["queries/\ncomplex joins aggregates"]
+        Schema["schema/\n95+ Drizzle table definitions"]
+        Client["client.ts\ndb = drizzle pool"]
+    end
+    subgraph DBInfra["PostgreSQL"]
+        PG["PostgreSQL 18\nTimescaleDB pgvector"]
+    end
+    Builder -->|"service calls only"| BusinessLayer
+    Worker -->|"service calls only"| BusinessLayer
+    Integrations -->|"service calls only"| BusinessLayer
+    BusinessLayer --> Repositories
+    BusinessLayer --> Queries
+    Repositories --> Schema
+    Queries --> Schema
+    Schema --> Client --> PG
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 15 ── -->
+    <section class="section" id="s15">
+      <div class="section-header">
+        <div class="section-number">15</div>
+        <h2 class="section-title">Infrastructure &amp; DevOps</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Docker Compose Services</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph DockerCompose["docker-compose.yml — Local Infrastructure"]
+        PG["postgres\ntimescale/timescaledb-ha:pg18-all\nPort 5432\nTimescaleDB + pgvector"]
+        ADMINER["adminer\nPort 8080\nDB admin UI"]
+        MAILHOG["mailhog\nPort 1025 SMTP\nPort 8025 web UI"]
+        RUSTFS["filesystem RustFS\nPort 9000 S3 API\nPort 9001 Console\nS3-compatible storage"]
+        RUSTFS_INIT["filesystem-init\nInit bucket + public policy"]
+        REDIS["redis:8-alpine\nPort 6379\nBullMQ caching"]
+        REDIS_UI["redis-ui RedisInsight\nPort 5540"]
+    end
+    PG --> ADMINER
+    RUSTFS --> RUSTFS_INIT
+    REDIS --> REDIS_UI
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Turborepo Build Pipeline</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+flowchart LR
+    subgraph TurboTasks["Turborepo Tasks"]
+        BUILD["build\ndependsOn: ^build\noutputs: .next/** dist/**"]
+        LINT["lint\ndependsOn: ^lint"]
+        TYPES["check-types\ndependsOn: ^check-types"]
+        TEST["test\nvitest run"]
+        DEV["dev\ncache: false persistent: true"]
+        DB_MIGRATE["db:migrate\ncache: false"]
+    end
+    subgraph Commands["pnpm root scripts"]
+        CMD1["pnpm dev — all apps in parallel"]
+        CMD2["pnpm build — full prod build"]
+        CMD3["pnpm lint — Ultracite Biome"]
+        CMD4["pnpm fix — Ultracite fix unsafe"]
+        CMD5["pnpm check:circular — madge"]
+        CMD6["pnpm check:unused — knip"]
+    end
+    TurboTasks --- Commands
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 16 ── -->
+    <section class="section" id="s16">
+      <div class="section-header">
+        <div class="section-number">16</div>
+        <h2 class="section-title">Package Dependency Graph</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Package Dependencies</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph AppLayer["Applications"]
+        BUILDER["apps/builder"]
+        WORKER["apps/worker"]
+        REALTIME["apps/realtime"]
+        CLI["apps/cli"]
+        MCP["apps/mcp-server"]
+    end
+    subgraph ServiceLayer["Service Packages"]
+        BUSINESS["@dm4ig/business"]
+        AUTO_RESP["@dm4ig/automated-response"]
+        ANALYTICS["@dm4ig/analytics"]
+        ANALYTICS_NEXT["@dm4ig/analytics-nextjs"]
+    end
+    subgraph InfraLayer["Infrastructure Packages"]
+        DATABASE["@dm4ig/database"]
+        REDIS_PKG["@dm4ig/redis"]
+        KAFKA_PKG["@dm4ig/kafka"]
+        EVENT_BUS["@dm4ig/event-bus"]
+        FILESYSTEM["@dm4ig/filesystem"]
+        MAIL["@dm4ig/mail"]
+        ENCRYPTION["@dm4ig/encryption"]
+        WORKER_CFG["@dm4ig/worker-config"]
+    end
+    subgraph DomainLayer["Domain Packages"]
+        FLOW_CFG["@dm4ig/flow-config"]
+        AI_PKG["@dm4ig/ai"]
+        SDK["@dm4ig/sdk"]
+        PUBLIC_APIS["@dm4ig/public-apis"]
+    end
+    subgraph UILayer["UI Config Packages"]
+        UI["@dm4ig/ui\nShadcn + Radix"]
+        AUTH["@dm4ig/auth"]
+        LOGGER["@dm4ig/logger"]
+        UTILS["@dm4ig/utils"]
+        PARTY_CFG["@dm4ig/partysocket-config"]
+    end
+    BUILDER --> BUSINESS & DATABASE & FLOW_CFG & AI_PKG
+    BUILDER --> ANALYTICS_NEXT & WORKER_CFG & UI & PUBLIC_APIS & PARTY_CFG
+    WORKER --> BUSINESS & DATABASE & FLOW_CFG & WORKER_CFG
+    WORKER --> AI_PKG & AUTO_RESP & EVENT_BUS & KAFKA_PKG & FILESYSTEM & ANALYTICS
+    REALTIME --> AUTH & PARTY_CFG
+    BUSINESS --> DATABASE & FLOW_CFG & SDK & REDIS_PKG & FILESYSTEM & MAIL & ENCRYPTION
+    DATABASE --> REDIS_PKG & LOGGER
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 17 ── -->
+    <section class="section" id="s17">
+      <div class="section-header">
+        <div class="section-number">17</div>
+        <h2 class="section-title">Flow Engine Architecture</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Flow Node Types</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph LR
+    subgraph SendNodes["Send Nodes"]
+        SN1["sendText\nSend text message"]
+        SN2["sendImage sendGif\nSend media"]
+        SN3["sendVideo sendAudio\nSend media"]
+        SN4["sendFile\nSend attachment"]
+        SN5["sendCard\nRich card"]
+        SN6["sendCarousel\nMulti-card"]
+        SN7["sendQuickReply\nQuick reply buttons"]
+        SN8["sendWaTemplateMessage\nWhatsApp template"]
+        SN9["sendMessengerTemplate\nMessenger template"]
+    end
+    subgraph LogicNodes["Logic Nodes"]
+        LN1["condition\nBranch on variable"]
+        LN2["getUserData\nCapture user input challenge"]
+        LN3["randomSplit\nA/B testing"]
+        LN4["smartDelay\nTime-based wait"]
+        LN5["aiAgent\nRun AI agent response"]
+    end
+    subgraph ActionNodes["Action Nodes"]
+        AN1["subscribeSequence\nEnroll in drip campaign"]
+        AN2["unsubscribeSequence\nUnenroll from campaign"]
+        AN3["addTag removeTag\nContact tagging"]
+        AN4["setContactField\nUpdate contact data"]
+        AN5["sendEmail\nSend via SMTP"]
+        AN6["callWebhook\nHTTP request"]
+        AN7["googleSheetsAction\nSpreadsheet operation"]
+        AN8["assignConversation\nRoute to agent or team"]
+        AN9["jumpToFlow\nRedirect to another flow"]
+    end
+          </div>
+        </div>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Flow Execution Sequence</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+sequenceDiagram
+    participant Trigger as Trigger Postback QuickReply
+    participant IntQ as Integration Queue
+    participant IntW as Integration Worker
+    participant FlowEngine as Flow Engine runFlowNode
+    participant FlowCfg as @dm4ig/flow-config step schema
+    participant ChatQ as Chat Queue
+    participant ChatW as Chat Worker
+    participant Channel as Channel API
+    Trigger->>IntQ: integrationQueue.add sendFlow conversationId flowId nodeId
+    IntQ-->>IntW: dequeue
+    IntW->>FlowEngine: runFlowNode data
+    FlowEngine->>FlowCfg: validate step type and data
+    loop For each step in node
+        FlowEngine->>FlowEngine: evaluate conditions
+        FlowEngine->>ChatQ: chatQueue.add sendFlowMessage step
+        ChatQ-->>ChatW: dequeue
+        ChatW->>Channel: send message API
+        FlowEngine->>FlowEngine: advance to next node
+    end
+    alt Jump or branch
+        FlowEngine->>IntQ: integrationQueue.add sendFlow nodeId nextNodeId
+    end
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SECTION 18 ── -->
+    <section class="section" id="s18">
+      <div class="section-header">
+        <div class="section-number">18</div>
+        <h2 class="section-title">Deployment Architecture</h2>
+      </div>
+      <div class="diagram-card">
+        <div class="diagram-card-label"><span></span>Production Topology</div>
+        <div class="diagram-wrap">
+          <div class="mermaid">
+graph TB
+    subgraph Internet["Internet"]
+        Users["End Users\nBrowsers Mobile"]
+        Channels["External Channels\nMeta Telegram etc"]
+        ExtDevs["Developers\nCLI MCP clients"]
+    end
+    subgraph LoadBalancer["Load Balancer / Reverse Proxy"]
+        LB["Nginx Traefik Cloudflare"]
+    end
+    subgraph AppServers["Application Servers"]
+        BuilderInst1["Builder Instance 1\napps/builder Next.js\nPort 3123"]
+        BuilderInst2["Builder Instance N\napps/builder Next.js\nPort 3123"]
+        RealtimeInst["Realtime Server\napps/realtime PartyKit\nPort 1999"]
+    end
+    subgraph WorkerProcs["Worker Processes"]
+        WChat["Chat Worker\n1+ processes"]
+        WInt["Integration Worker\n1+ processes"]
+        WAI["AI Agent Worker"]
+        WTrig["Trigger Worker"]
+        WWebhook["Webhook Worker"]
+        WSched["Schedule Worker"]
+        WSeq["Sequence Scheduler"]
+    end
+    subgraph DataStores["Data Stores"]
+        PG_Primary["PostgreSQL Primary\nwrites"]
+        PG_Replica["PostgreSQL Replica\nreads optional"]
+        Redis_Cluster["Redis Dragonfly\nqueues cache"]
+        S3_Bucket["S3 Storage\nRustFS AWS S3 GCS"]
+        Kafka_Cluster["Apache Kafka\nsequence dispatch"]
+    end
+    Users & Channels & ExtDevs --> LB
+    LB --> BuilderInst1 & BuilderInst2 & RealtimeInst
+    BuilderInst1 & BuilderInst2 --> Redis_Cluster & PG_Primary & S3_Bucket
+    Redis_Cluster --> WChat & WInt & WAI & WTrig & WWebhook & WSched
+    Kafka_Cluster --> WSeq
+    WSeq --> Kafka_Cluster
+    WChat & WInt & WAI & WTrig & WWebhook & WSched & WSeq --> PG_Primary
+    WChat & WInt & WAI --> S3_Bucket
+    BuilderInst1 & BuilderInst2 --> RealtimeInst
+    WChat --> RealtimeInst
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SUMMARY ── -->
+    <section class="section" id="summary">
+      <div class="section-header">
+        <div class="section-number">—</div>
+        <h2 class="section-title">Summary Reference Card</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Concern</th>
+              <th>Technology</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Web UI + API Server</td><td>Next.js 16 App Router</td><td><code>apps/builder</code></td></tr>
+            <tr><td>Background Jobs</td><td>BullMQ + Redis</td><td><code>apps/worker</code>, <code>packages/worker-config</code></td></tr>
+            <tr><td>Realtime / WebSocket</td><td>PartyKit</td><td><code>apps/realtime</code></td></tr>
+            <tr><td>CLI</td><td>yargs</td><td><code>apps/cli</code></td></tr>
+            <tr><td>MCP Server</td><td>@modelcontextprotocol/sdk</td><td><code>apps/mcp-server</code></td></tr>
+            <tr><td>Database ORM</td><td>Drizzle ORM + PostgreSQL 18</td><td><code>packages/database</code></td></tr>
+            <tr><td>Domain Services</td><td>Custom service layer</td><td><code>packages/business</code></td></tr>
+            <tr><td>Auth</td><td>Better Auth</td><td><code>packages/auth</code></td></tr>
+            <tr><td>Queue Broker</td><td>Redis / Dragonfly</td><td>Docker: <code>redis</code></td></tr>
+            <tr><td>Object Storage</td><td>RustFS (S3-compatible)</td><td>Docker: <code>filesystem</code></td></tr>
+            <tr><td>Message Streaming</td><td>Apache Kafka</td><td>External / Docker</td></tr>
+            <tr><td>AI Providers</td><td>OpenAI, Claude, Gemini, DeepSeek</td><td><code>packages/ai</code>, <code>integrations/openai</code></td></tr>
+            <tr><td>Flow DSL</td><td>Zod schemas</td><td><code>packages/flow-config</code></td></tr>
+            <tr><td>UI Components</td><td>Shadcn UI + Radix UI + Tailwind v4</td><td><code>packages/ui</code></td></tr>
+            <tr><td>Lint / Format</td><td>Ultracite (Biome)</td><td>Root <code>biome.json</code></td></tr>
+            <tr><td>Monorepo</td><td>pnpm + Turborepo</td><td>Root <code>turbo.json</code></td></tr>
+            <tr><td>Channels</td><td>WhatsApp, Messenger, Instagram, Telegram, Zalo, TikTok, Webchat, SMTP</td><td><code>integrations/*</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <span>DM4IG Architecture Documentation</span>
+  <span>Generated from arc.md — 18 sections · 30+ Mermaid diagrams</span>
+</footer>
+
+<button id="scrollTop" title="Back to top" aria-label="Scroll to top">↑</button>
+
+<!-- Fullscreen Diagram Modal -->
+<div class="diagram-modal" id="diagramModal">
+  <div class="diagram-modal-header">
+    <div class="diagram-modal-title"><span></span>Full View</div>
+    <button class="diagram-modal-close" title="Close (ESC)">×</button>
+  </div>
+  <div class="diagram-modal-body"></div>
+  <div class="diagram-modal-toolbar">
+    <button class="diagram-btn m-out" title="Zoom Out">−</button>
+    <div class="diagram-zoom-indicator">100%</div>
+    <button class="diagram-btn m-in" title="Zoom In">+</button>
+    <button class="diagram-btn m-fit" title="Reset View">⟲</button>
+  </div>
+</div>
+
+<script>
+  // ── SVG Pan & Zoom Engine (Confined Strictly to Fullscreen Modal) ──────────────────────────
+  class SVGPanZoom {
+    constructor(container, svg, indicator) {
+      this.container = container;
+      this.svg = svg;
+      this.indicator = indicator;
+
+      this.scale = 1;
+      this.panX = 0;
+      this.panY = 0;
+      this.isDragging = false;
+      this.startX = 0;
+      this.startY = 0;
+
+      // Reset inline styling constraints for modal zoom
+      this.svg.removeAttribute('width');
+      this.svg.removeAttribute('height');
+      this.svg.style.transformOrigin = '0 0';
+      this.svg.style.transition = 'none';
+
+      this.initTransform();
+      this.bindEvents();
+    }
+
+    getSVGDimensions() {
+      const viewBox = this.svg.getAttribute('viewBox');
+      if (viewBox) {
+        const parts = viewBox.split(/\s+/);
+        if (parts.length >= 4) {
+          const w = parseFloat(parts[2]);
+          const h = parseFloat(parts[3]);
+          if (w && h) {
+            return { w, h };
+          }
+        }
+      }
+      const rect = this.svg.getBoundingClientRect();
+      return { w: rect.width || 800, h: rect.height || 600 };
+    }
+
+    getFitScale() {
+      const pad = 80;
+      const containerW = this.container.clientWidth - pad;
+      const containerH = this.container.clientHeight - pad;
+
+      const dims = this.getSVGDimensions();
+      return Math.min(containerW / dims.w, containerH / dims.h, 1.5);
+    }
+
+    initTransform() {
+      setTimeout(() => {
+        const dims = this.getSVGDimensions();
+        this.svg.style.width = dims.w + 'px';
+        this.svg.style.height = dims.h + 'px';
+
+        const containerW = this.container.clientWidth;
+        const containerH = this.container.clientHeight;
+
+        this.scale = this.getFitScale();
+        this.panX = (containerW - dims.w * this.scale) / 2;
+        this.panY = (containerH - dims.h * this.scale) / 2;
+        this.update();
+      }, 50);
+    }
+
+    update() {
+      this.svg.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+      if (this.indicator) {
+        this.indicator.textContent = `${Math.round(this.scale * 100)}%`;
+      }
+    }
+
+    zoom(factor, clientX, clientY) {
+      const rect = this.container.getBoundingClientRect();
+      const mouseX = clientX !== undefined ? (clientX - rect.left) : (this.container.clientWidth / 2);
+      const mouseY = clientY !== undefined ? (clientY - rect.top) : (this.container.clientHeight / 2);
+
+      const nextScale = Math.max(0.08, Math.min(12.0, this.scale * factor));
+      
+      this.panX = mouseX - (mouseX - this.panX) * (nextScale / this.scale);
+      this.panY = mouseY - (mouseY - this.panY) * (nextScale / this.scale);
+      this.scale = nextScale;
+      this.update();
+    }
+
+    zoomIn() { this.zoom(1.25); }
+    zoomOut() { this.zoom(1 / 1.25); }
+    
+    reset() {
+      this.scale = this.getFitScale();
+      const dims = this.getSVGDimensions();
+      this.svg.style.width = dims.w + 'px';
+      this.svg.style.height = dims.h + 'px';
+
+      const containerW = this.container.clientWidth;
+      const containerH = this.container.clientHeight;
+
+      this.panX = (containerW - dims.w * this.scale) / 2;
+      this.panY = (containerH - dims.h * this.scale) / 2;
+      this.update();
+    }
+
+    bindEvents() {
+      this.onMouseDown = (e) => {
+        if (e.button !== 0) return;
+        this.isDragging = true;
+        this.startX = e.clientX - this.panX;
+        this.startY = e.clientY - this.panY;
+        this.container.style.cursor = 'grabbing';
+        e.preventDefault();
+      };
+
+      this.onMouseMove = (e) => {
+        if (!this.isDragging) return;
+        this.panX = e.clientX - this.startX;
+        this.panY = e.clientY - this.startY;
+        this.update();
+      };
+
+      this.onMouseUp = () => {
+        if (this.isDragging) {
+          this.isDragging = false;
+          this.container.style.cursor = 'grab';
+        }
+      };
+
+      this.onWheel = (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.08 : (1 / 1.08);
+        this.zoom(factor, e.clientX, e.clientY);
+      };
+
+      this.onDblClick = (e) => {
+        e.preventDefault();
+        this.reset();
+      };
+
+      this.container.addEventListener('mousedown', this.onMouseDown);
+      window.addEventListener('mousemove', this.onMouseMove);
+      window.addEventListener('mouseup', this.onMouseUp);
+      this.container.addEventListener('mouseleave', this.onMouseUp);
+      this.container.addEventListener('wheel', this.onWheel, { passive: false });
+      this.container.addEventListener('dblclick', this.onDblClick);
+    }
+
+    destroy() {
+      this.container.removeEventListener('mousedown', this.onMouseDown);
+      window.removeEventListener('mousemove', this.onMouseMove);
+      window.removeEventListener('mouseup', this.onMouseUp);
+      this.container.removeEventListener('mouseleave', this.onMouseUp);
+      this.container.removeEventListener('wheel', this.onWheel);
+      this.container.removeEventListener('dblclick', this.onDblClick);
+      this.container.style.cursor = '';
+    }
+  }
+
+  // ── Semantic Colorizer (Light Mode) ──────────────────
+  function colorizeDiagramNodes() {
+    const nodes = document.querySelectorAll('.mermaid svg .node');
+    nodes.forEach(node => {
+      const textEl = node.querySelector('.label') || node.querySelector('text');
+      if (!textEl) return;
+      const text = textEl.textContent.toLowerCase().trim();
+
+      const shapes = node.querySelectorAll('rect, polygon, circle, path');
+      if (shapes.length === 0) return;
+
+      // Color maps - clean white/soft-tone fills with accented light mode borders
+      if (text.includes('queue') || text.includes('intq') || text.includes('chatq') || text.includes('redis') || text.includes('dragonfly')) {
+        // Queues: Orange
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#fff7ed', 'important');
+          s.style.setProperty('stroke', 'var(--orange)', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#7c2d12', 'important');
+        textEl.style.setProperty('color', '#7c2d12', 'important');
+      } else if (text.includes('worker') || text.includes('wchat') || text.includes('wint') || text.includes('wai') || text.includes('wtrig') || text.includes('wwebhook') || text.includes('wsched') || text.includes('wseq') || text.includes('jobs') || text.includes('scheduler')) {
+        // Workers: Pink
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#fdf2f8', 'important');
+          s.style.setProperty('stroke', 'var(--pink)', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#701a75', 'important');
+        textEl.style.setProperty('color', '#701a75', 'important');
+      } else if (text.includes('postgresql') || text.includes('pg_') || text.includes('db') || text.includes('database') || text.includes('drizzle') || text.includes('datastore') || text.includes('primary') || text.includes('replica')) {
+        // Databases: Green
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#f0fdf4', 'important');
+          s.style.setProperty('stroke', 'var(--green)', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#064e3b', 'important');
+        textEl.style.setProperty('color', '#064e3b', 'important');
+      } else if (text.includes('kafka') || text.includes('s3') || text.includes('storage') || text.includes('object storage')) {
+        // Streams / S3: Teal
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#f0fdfa', 'important');
+          s.style.setProperty('stroke', 'var(--teal)', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#115e59', 'important');
+        textEl.style.setProperty('color', '#115e59', 'important');
+      } else if (text.includes('browser') || text.includes('client') || text.includes('mobile') || text.includes('user') || text.includes('extapi') || text.includes('devs')) {
+        // Clients: Blue/Indigo
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#eff6ff', 'important');
+          s.style.setProperty('stroke', 'var(--accent)', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#1e1b4b', 'important');
+        textEl.style.setProperty('color', '#1e1b4b', 'important');
+      } else if (text.includes('whatsapp') || text.includes('meta') || text.includes('messenger') || text.includes('instagram') || text.includes('telegram') || text.includes('zalo') || text.includes('tiktok') || text.includes('smtp') || text.includes('channel') || text.includes('external')) {
+        // Channels: Purple
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#f5f3ff', 'important');
+          s.style.setProperty('stroke', '#8b5cf6', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#4c1d95', 'important');
+        textEl.style.setProperty('color', '#4c1d95', 'important');
+      } else if (text.includes('builder') || text.includes('next.js') || text.includes('apps/builder') || text.includes('realtime') || text.includes('partykit') || text.includes('mcp-server') || text.includes('mcp') || text.includes('cli')) {
+        // Core Web Server / API: Cyan
+        shapes.forEach(s => {
+          s.style.setProperty('fill', '#ecfeff', 'important');
+          s.style.setProperty('stroke', '#06b6d4', 'important');
+          s.style.setProperty('stroke-width', '1.5px', 'important');
+        });
+        textEl.style.setProperty('fill', '#164e63', 'important');
+        textEl.style.setProperty('color', '#164e63', 'important');
+      }
+    });
+  }
+
+  // ── Render, Style & Control Engine Setup ────────────
+  function setupDiagramControls() {
+    const cards = document.querySelectorAll('.diagram-card');
+    const modal = document.getElementById('diagramModal');
+    const modalBody = modal.querySelector('.diagram-modal-body');
+    const modalTitle = modal.querySelector('.diagram-modal-title');
+    const modalClose = modal.querySelector('.diagram-modal-close');
+    const modalIndicator = modal.querySelector('.diagram-zoom-indicator');
+    
+    let modalPanZoom = null;
+
+    cards.forEach(card => {
+      const wrap = card.querySelector('.diagram-wrap');
+      if (!wrap) return;
+
+      const headerLabel = card.querySelector('.diagram-card-label');
+      if (!headerLabel) return;
+
+      let triggerBtn = headerLabel.querySelector('.diagram-fullscreen-trigger');
+      let titleText;
+
+      if (triggerBtn) {
+        const leftDiv = headerLabel.querySelector('.diagram-label-left');
+        titleText = leftDiv ? leftDiv.textContent.trim() : headerLabel.textContent.replace('⛶ Fullscreen', '').trim();
+      } else {
+        titleText = headerLabel.textContent.trim();
+
+        // Clear header and rebuild with structured elements
+        headerLabel.innerHTML = '';
+        
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'diagram-label-left';
+        
+        const dot = document.createElement('span');
+        leftDiv.appendChild(dot);
+        leftDiv.appendChild(document.createTextNode(' ' + titleText));
+        
+        triggerBtn = document.createElement('button');
+        triggerBtn.className = 'diagram-fullscreen-trigger';
+        triggerBtn.innerHTML = '⛶ Fullscreen';
+
+        headerLabel.appendChild(leftDiv);
+        headerLabel.appendChild(triggerBtn);
+      }
+
+      // Fullscreen Click Handlers
+      triggerBtn.onclick = (e) => {
+        e.stopPropagation();
+
+        const svg = wrap.querySelector('svg');
+        if (!svg) {
+          console.warn("No SVG found inside .diagram-wrap yet for: " + titleText);
+          alert("Diagram is still loading. Please try again in a moment.");
+          return;
+        }
+
+        modalTitle.innerHTML = `<span></span>${titleText}`;
+        modalBody.innerHTML = '';
+        
+        // Clone SVG and set to fullscreen
+        const clone = svg.cloneNode(true);
+        clone.style.transform = '';
+        modalBody.appendChild(clone);
+        
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        if (modalPanZoom) {
+          modalPanZoom.destroy();
+        }
+        modalPanZoom = new SVGPanZoom(modalBody, clone, modalIndicator);
+
+        // Bind modal toolbar actions
+        const mOut = modal.querySelector('.m-out');
+        const mIn = modal.querySelector('.m-in');
+        const mFit = modal.querySelector('.m-fit');
+
+        if (mOut) mOut.onclick = () => modalPanZoom.zoomOut();
+        if (mIn) mIn.onclick = () => modalPanZoom.zoomIn();
+        if (mFit) mFit.onclick = () => modalPanZoom.reset();
+      };
+    });
+
+    const closeModal = () => {
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+      modalBody.innerHTML = '';
+      if (modalPanZoom) {
+        modalPanZoom.destroy();
+        modalPanZoom = null;
+      }
+    };
+
+    modalClose.onclick = closeModal;
+    modal.onclick = (e) => {
+      if (e.target === modal || e.target === modalBody) closeModal();
+    };
+
+    if (!window.diagramEscapeListenerBound) {
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+          closeModal();
+        }
+      });
+      window.diagramEscapeListenerBound = true;
+    }
+  }
+
+  // ── Initialize Mermaid programmatically ─────────────
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'default',
+    themeVariables: {
+      fontFamily: 'Inter, -apple-system, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: { curve: 'basis', padding: 20, htmlLabels: true },
+    sequence: { actorMargin: 60, width: 160, height: 55, boxMargin: 10, mirrorActors: false },
+    er: { diagramPadding: 20, layoutDirection: 'TB', minEntityWidth: 100, entityPadding: 15 },
+  });
+
+  // Wait for loading, execute render and initialize controls
+  function initPage() {
+    try {
+      setupDiagramControls();
+    } catch (err) {
+      console.error('Error setting up diagram controls:', err);
+    }
+
+    mermaid.run()
+      .then(() => {
+        try {
+          colorizeDiagramNodes();
+        } catch (err) {
+          console.error('Error colorizing nodes:', err);
+        }
+      })
+      .catch((err) => {
+        console.error('Mermaid rendering error:', err);
+      })
+      .finally(() => {
+        setTimeout(() => {
+          const overlay = document.getElementById('loadingOverlay');
+          if (overlay) overlay.classList.add('hidden');
+        }, 500);
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initPage);
+  } else {
+    initPage();
+  }
+
+  // ── Scroll top ───────────────────────────────────
+  const scrollBtn = document.getElementById('scrollTop');
+  window.addEventListener('scroll', () => {
+    scrollBtn.classList.toggle('show', window.scrollY > 400);
+  });
+  scrollBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  // ── Sidebar active link tracking ──────────────────
+  const sections = document.querySelectorAll('.section[id]');
+  const sidebarLinks = document.querySelectorAll('.sidebar-link[data-section]');
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        sidebarLinks.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === `#${id}`) {
+            link.classList.add('active');
+          }
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => obs.observe(s));
+
+  // ── Search Section Filtering ───────────────────────
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase().trim();
+    if (!q) {
+      sections.forEach(s => { s.style.display = ''; });
+      document.querySelectorAll('.sidebar-link').forEach(l => { l.style.display = ''; });
+      return;
+    }
+    sections.forEach(s => {
+      const text = s.textContent.toLowerCase();
+      s.style.display = text.includes(q) ? '' : 'none';
+    });
+  });
+</script>
+</body>
+</html>
